@@ -39,13 +39,14 @@ afterEvaluate {
         publications {
             create<MavenPublication>("release") {
                 groupId = "com.github.Ashu-Hasan"  // GitHub username
-                artifactId = "ashuUtils"              // Library name
-                version = "1.0.4"                  // Version/tag
+                artifactId = "AshuXKit"            // must match your dependency name
+                version = "1.0.6"                  // must match tag
                 from(components["release"])
             }
         }
     }
 }
+
 
 dependencies {
     implementation(libs.appcompat)
