@@ -38,10 +38,10 @@ afterEvaluate {
     publishing {
         publications {
             create<MavenPublication>("release") {
+                groupId = "com.github.Ashu-Hasan"  // GitHub username
+                artifactId = "ashuUtils"              // Library name
+                version = "1.0.4"                  // Version/tag
                 from(components["release"])
-                groupId = "com.github.Ashu-Hasan"
-                artifactId = "ashuUtils"
-                version = "1.0.2"
             }
         }
     }
