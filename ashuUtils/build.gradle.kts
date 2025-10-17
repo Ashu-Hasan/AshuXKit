@@ -40,7 +40,7 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 groupId = "com.github.Ashu-Hasan"  // GitHub username
                 artifactId = "AshuXKit"            // must match your dependency name
-                version = "1.0.6"                  // must match tag
+                version = "1.0.7"                  // must match tag
                 from(components["release"])
             }
         }
@@ -59,6 +59,8 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.11")
+
+    implementation("com.google.android.gms:play-services-base:18.5.0")
 
     // Glide
     implementation("com.github.bumptech.glide:glide:4.16.0")
