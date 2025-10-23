@@ -40,7 +40,7 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 groupId = "com.github.Ashu-Hasan"  // GitHub username
                 artifactId = "AshuXKit"            // must match your dependency name
-                version = "1.0.7"                  // must match tag
+                version = "1.0.8"                  // must match tag
                 from(components["release"])
             }
         }

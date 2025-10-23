@@ -1,4 +1,4 @@
-package com.ashu.ashuutils;
+package com.ashu.ashuutils.fileUtils;
 
 import android.Manifest;
 import android.app.Activity;
@@ -41,6 +41,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
+import com.ashu.ashuutils.R;
 import com.ashu.ashuutils.models.CompressFileData;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.DataSource;
