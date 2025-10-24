@@ -5,7 +5,6 @@ import android.graphics.drawable.Drawable;
 import android.util.Log;
 import android.widget.ImageView;
 
-import com.ashu.ashuutils.R;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
@@ -19,15 +18,27 @@ import org.jetbrains.annotations.Nullable;
 
 public interface ImageHelperMethods {
 
-    public static void loadImage(String TAG, Context context, String imageUrl, ImageView imageView) {
+    public static void loadImage(String TAG, Context context, String imageUrl, ImageView imageView, int tempImage) {
         try {
             Log.d(TAG, "🖼️ Trying to load image: " + imageUrl);
 
+            /*int placeholderRes;
+            try {
+                placeholderRes = context.getResources().getIdentifier("profile_icon", "drawable", context.getPackageName());
+                if (placeholderRes == 0) {
+                    // fallback to built-in android icon if not found
+                    placeholderRes = android.R.drawable.ic_menu_report_image;
+                }
+            } catch (Exception e) {
+                placeholderRes = android.R.drawable.ic_menu_report_image;
+            }*/
+
             RequestOptions requestOptions = new RequestOptions()
-                    .placeholder(R.drawable.profile_icon) // your placeholder image
-                    .error(R.drawable.profile_icon)             // image shown on error
+                    .placeholder(tempImage)
+                    .error(tempImage)
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .centerCrop();
+
 
             Glide.with(context)
                     .load(imageUrl)

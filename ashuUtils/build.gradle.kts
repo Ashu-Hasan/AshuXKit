@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.ashu.ashuutils"
-    compileSdk = 36
+    compileSdk = 34 // use 34 for now, 36 is not stable yet (causes build issues)
 
     defaultConfig {
         minSdk = 24
@@ -28,9 +28,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // 👇 this was the line causing error (fixed version)
+    // ✅ This ensures only release AAR is published
     publishing {
-        singleVariant("release")
+        singleVariant("release") {
+            withSourcesJar()
+            withJavadocJar()
+        }
     }
 }
 
@@ -38,15 +41,39 @@ afterEvaluate {
     publishing {
         publications {
             create<MavenPublication>("release") {
-                groupId = "com.github.Ashu-Hasan"  // GitHub username
-                artifactId = "AshuXKit"            // must match your dependency name
-                version = "1.0.8"                  // must match tag
+                groupId = "com.github.Ashu-Hasan"   // GitHub username
+                artifactId = "AshuXKit"             // Library name
+                version = "1.0.9"                   // Match your Git tag
                 from(components["release"])
+
+                pom {
+                    name.set("AshuXKit")
+                    description.set("A collection of reusable Android utility methods by Mr. Ash.")
+                    url.set("https://github.com/Ashu-Hasan/AshuXKit")
+
+                    licenses {
+                        license {
+                            name.set("MIT License")
+                            url.set("https://opensource.org/licenses/MIT")
+                        }
+                    }
+                    developers {
+                        developer {
+                            id.set("ashuhasan")
+                            name.set("Ashu Hasan")
+                            email.set("ashu@example.com")
+                        }
+                    }
+                    scm {
+                        connection.set("scm:git:github.com/Ashu-Hasan/AshuXKit.git")
+                        developerConnection.set("scm:git:ssh://github.com/Ashu-Hasan/AshuXKit.git")
+                        url.set("https://github.com/Ashu-Hasan/AshuXKit")
+                    }
+                }
             }
         }
     }
 }
-
 
 dependencies {
     implementation(libs.appcompat)
