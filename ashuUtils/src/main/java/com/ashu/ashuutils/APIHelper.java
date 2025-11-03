@@ -18,6 +18,7 @@ import retrofit2.Response;
 public interface APIHelper {
     static final Gson gson = new Gson();
     public static JSONObject getResponseData(String TAG, Response<JsonObject> response, boolean ENABLE_TESTING) {
+        JSONObject resultData = null;
         try {
 
             Messages.showTestLog(TAG, "Raw Response Code: " + response.code(), ENABLE_TESTING);
@@ -26,16 +27,21 @@ public interface APIHelper {
 
             if (response.isSuccessful() && response.body() != null) {
                 // ✅ Success body
-                return new JSONObject(response.body().toString());
+                resultData = new JSONObject(response.body().toString());
+                Messages.showTestLog(TAG, TAG + " Json Response: " + resultData, ENABLE_TESTING);
+                return resultData;
             } else if (response.errorBody() != null) {
                 // ✅ Error body (convert raw response)
                 String errorJson = response.errorBody().string();
-                return new JSONObject(errorJson);
+                resultData = new JSONObject(errorJson);
+                Messages.showTestLog(TAG, TAG + " errorJson: " + resultData, ENABLE_TESTING);
+                return resultData;
             } else {
                 // ❌ Empty or unexpected
                 JSONObject error = new JSONObject();
                 error.put("status", false);
                 error.put("message", "No response from server");
+                Messages.showTestLog(TAG, TAG + " errorJson: " + error, ENABLE_TESTING);
                 return error;
             }
         } catch (Exception e) {
@@ -44,10 +50,11 @@ public interface APIHelper {
                 JSONObject error = new JSONObject();
                 error.put("status", false);
                 error.put("message", "Parse error: " + e.getMessage());
+                Messages.showTestLog(TAG, TAG + " errorJson: " + error, ENABLE_TESTING);
                 return error;
             } catch (Exception ignored) {}
         }
-        return null;
+        return resultData;
     }
 
 
