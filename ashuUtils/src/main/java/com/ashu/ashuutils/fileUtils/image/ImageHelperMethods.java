@@ -29,8 +29,8 @@ public interface ImageHelperMethods {
                     .error(tempImage)
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .dontAnimate()       // 👈 disables fade animation
-                    .dontTransform()     // 👈 ensures clean replacement
-                    .fitCenter();
+                    .dontTransform();     // 👈 ensures clean replacement
+
 
             Glide.with(context)
                     .load(imageUrl)
