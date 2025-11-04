@@ -20,30 +20,21 @@ public interface ImageHelperMethods {
 
     public static void loadImage(String TAG, Context context, String imageUrl, ImageView imageView, int tempImage) {
         try {
-            Log.d(TAG, "🖼️ Trying to load image: " + imageUrl);
-
-            /*int placeholderRes;
-            try {
-                placeholderRes = context.getResources().getIdentifier("profile_icon", "drawable", context.getPackageName());
-                if (placeholderRes == 0) {
-                    // fallback to built-in android icon if not found
-                    placeholderRes = android.R.drawable.ic_menu_report_image;
-                }
-            } catch (Exception e) {
-                placeholderRes = android.R.drawable.ic_menu_report_image;
-            }*/
+            // Clear any previous image to prevent overlap
+            Glide.with(context).clear(imageView);
+            imageView.setImageResource(tempImage);
 
             RequestOptions requestOptions = new RequestOptions()
                     .placeholder(tempImage)
                     .error(tempImage)
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .dontAnimate()       // 👈 disables fade animation
+                    .dontTransform()     // 👈 ensures clean replacement
                     .centerCrop();
-
 
             Glide.with(context)
                     .load(imageUrl)
                     .apply(requestOptions)
-                    .transition(DrawableTransitionOptions.withCrossFade())
                     .listener(new RequestListener<Drawable>() {
                         @Override
                         public boolean onLoadFailed(
@@ -53,7 +44,7 @@ public interface ImageHelperMethods {
                                 boolean isFirstResource
                         ) {
                             Log.e(TAG, "❌ Failed to load image: " + imageUrl, e);
-                            return false; // allows Glide to handle error placeholder
+                            return false;
                         }
 
                         @Override
