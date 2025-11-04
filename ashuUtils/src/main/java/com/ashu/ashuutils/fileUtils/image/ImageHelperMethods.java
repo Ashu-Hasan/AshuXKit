@@ -30,7 +30,7 @@ public interface ImageHelperMethods {
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .dontAnimate()       // 👈 disables fade animation
                     .dontTransform()     // 👈 ensures clean replacement
-                    .centerCrop();
+                    .fitCenter();
 
             Glide.with(context)
                     .load(imageUrl)
