@@ -523,7 +523,7 @@ public interface FileUtils {
     }
 
 
-    public static void downloadImageIfNotExists(String TAG, Context context, String imageUrl, ImageView imageView, ImageView viewImageCrossIcon) {
+    public static void downloadImageIfNotExists(String TAG, Context context, String imageUrl, ImageView imageView, ImageView viewImageCrossIcon, String appImageFolderName) {
         ProgressDialog progressDialog = null;
 
         if (imageView != null) {
@@ -539,7 +539,7 @@ public interface FileUtils {
             try {
                 String fileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
                 String relativePath = Environment.DIRECTORY_PICTURES + "/AshuXKit";
-                File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "RydeApp");
+                File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), appImageFolderName);
                 File imageFile = new File(directory, fileName);
 
                 // If image exists, load from file
@@ -602,7 +602,7 @@ public interface FileUtils {
                     });
                 }
 
-                Log.d(TAG, "Image saved in RydeApp");
+                Log.d(TAG, "Image saved in "+appImageFolderName);
 
             } catch (Exception e) {
                 Log.e(TAG, "Download failed: " + e.getMessage(), e);

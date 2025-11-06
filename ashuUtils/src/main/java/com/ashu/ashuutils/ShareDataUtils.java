@@ -20,7 +20,7 @@ import java.util.ArrayList;
 
 public interface ShareDataUtils {
 
-    public static void shareImagesOnly(Context context, ArrayList<String> imageUrls) {
+    public static void shareImagesOnly(Context context, ArrayList<String> imageUrls, String appImageFolderName) {
         ProgressDialog progressDialog = new ProgressDialog(context);
         progressDialog.setMessage("Preparing images to share...");
         progressDialog.setCancelable(false);
@@ -29,7 +29,7 @@ public interface ShareDataUtils {
         new Thread(() -> {
             try {
                 ArrayList<Uri> imageUris = new ArrayList<>();
-                File imageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "RydeApp");
+                File imageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), appImageFolderName);
                 if (!imageDir.exists()) imageDir.mkdirs();
 
                 for (String Url : imageUrls) {
