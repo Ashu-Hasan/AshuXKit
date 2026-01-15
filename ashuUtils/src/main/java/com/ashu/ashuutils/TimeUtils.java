@@ -36,6 +36,7 @@ public interface TimeUtils {
             "dd MMM yyyy, hh:mm a",
 
             // Only Date formats
+            "dd-MMM-yyyy",
             "yyyy-MM-dd",
             "dd-MM-yyyy",
             "MM/dd/yyyy",
