@@ -17,43 +17,66 @@ import retrofit2.Response;
 
 public interface APIHelper {
     static final Gson gson = new Gson();
-    public static JSONObject getResponseData(String TAG, Response<JsonObject> response, boolean ENABLE_TESTING) {
+    public static JSONObject getResponseData(String TAG,
+                                             Response<JsonObject> response,
+                                             boolean ENABLE_TESTING) {
+
         JSONObject resultData = null;
+
         try {
 
-            Messages.showTestLog(TAG, "Raw Response Code: " + response.code(), ENABLE_TESTING);
+            int httpCode = response.code();
+
+            Messages.showTestLog(TAG, "Raw Response Code: " + httpCode, ENABLE_TESTING);
             Messages.showTestLog(TAG, "Raw Response Body: " + response.body(), ENABLE_TESTING);
-            Messages.showTestLog(TAG, "Raw Error Body: " + (response.errorBody() != null ? response.errorBody().toString() : "null"), ENABLE_TESTING);
+            Messages.showTestLog(TAG, "Raw Error Body: " +
+                            (response.errorBody() != null ? response.errorBody().toString() : "null"),
+                    ENABLE_TESTING);
 
             if (response.isSuccessful() && response.body() != null) {
-                // ✅ Success body
+
                 resultData = new JSONObject(response.body().toString());
+                resultData.put("http_code", httpCode);   // ✅ Inject here
+
                 Messages.showTestLog(TAG, TAG + " Json Response: " + resultData, ENABLE_TESTING);
                 return resultData;
+
             } else if (response.errorBody() != null) {
-                // ✅ Error body (convert raw response)
+
                 String errorJson = response.errorBody().string();
                 resultData = new JSONObject(errorJson);
+                resultData.put("http_code", httpCode);   // ✅ Inject here
+
                 Messages.showTestLog(TAG, TAG + " errorJson: " + resultData, ENABLE_TESTING);
                 return resultData;
+
             } else {
-                // ❌ Empty or unexpected
+
                 JSONObject error = new JSONObject();
                 error.put("status", false);
                 error.put("message", "No response from server");
+                error.put("http_code", httpCode);   // ✅ Inject here
+
                 Messages.showTestLog(TAG, TAG + " errorJson: " + error, ENABLE_TESTING);
                 return error;
             }
+
         } catch (Exception e) {
+
             e.printStackTrace();
+
             try {
                 JSONObject error = new JSONObject();
                 error.put("status", false);
                 error.put("message", "Parse error: " + e.getMessage());
+                error.put("http_code", response != null ? response.code() : -1);  // ✅ Safe fallback
+
                 Messages.showTestLog(TAG, TAG + " errorJson: " + error, ENABLE_TESTING);
                 return error;
-            } catch (Exception ignored) {}
+
+            } catch (Exception ignored) { }
         }
+
         return resultData;
     }
 

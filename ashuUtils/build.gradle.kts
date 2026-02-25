@@ -43,7 +43,7 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 groupId = "com.github.Ashu-Hasan"   // GitHub username
                 artifactId = "AshuXKit"             // Library name
-                version = "1.1.7"                   // Match your Git tag
+                version = "1.1.8"                   // Match your Git tag
                 from(components["release"])
 
                 pom {
