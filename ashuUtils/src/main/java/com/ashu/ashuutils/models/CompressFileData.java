@@ -9,14 +9,9 @@ public class CompressFileData implements Serializable {
     File fileFormat;
     String string64BaseFormat;
     Bitmap bitmapFormat;
+    String filePath;
 
     public CompressFileData() {}
-
-    public CompressFileData(File fileFormat, String string64BaseFormat, Bitmap bitmapFormat) {
-        this.fileFormat = fileFormat;
-        this.string64BaseFormat = string64BaseFormat;
-        this.bitmapFormat = bitmapFormat;
-    }
 
     public File getFileFormat() {
         return fileFormat;
@@ -36,5 +31,17 @@ public class CompressFileData implements Serializable {
 
     public void setBitmapFormat(Bitmap bitmapFormat) {
         this.bitmapFormat = bitmapFormat;
+    }
+
+    public Bitmap getBitmapFormat() {
+        return bitmapFormat;
+    }
+
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
     }
 }

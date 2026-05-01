@@ -43,7 +43,7 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 groupId = "com.github.Ashu-Hasan"   // GitHub username
                 artifactId = "AshuXKit"             // Library name
-                version = "1.1.8"                   // Match your Git tag
+                version = "1.1.9"                   // Match your Git tag
                 from(components["release"])
 
                 pom {
@@ -91,4 +91,6 @@ dependencies {
 
     // Glide
     implementation("com.github.bumptech.glide:glide:4.16.0")
+
+    implementation("com.github.yalantis:ucrop:2.2.10")
 }

@@ -18,8 +18,7 @@ import retrofit2.Response;
 public interface APIHelper {
     static final Gson gson = new Gson();
     public static JSONObject getResponseData(String TAG,
-                                             Response<JsonObject> response,
-                                             boolean ENABLE_TESTING) {
+                                             Response<JsonObject> response) {
 
         JSONObject resultData = null;
 
@@ -27,18 +26,17 @@ public interface APIHelper {
 
             int httpCode = response.code();
 
-            Messages.showTestLog(TAG, "Raw Response Code: " + httpCode, ENABLE_TESTING);
-            Messages.showTestLog(TAG, "Raw Response Body: " + response.body(), ENABLE_TESTING);
+            Messages.showTestLog(TAG, "Raw Response Code: " + httpCode);
+            Messages.showTestLog(TAG, "Raw Response Body: " + response.body());
             Messages.showTestLog(TAG, "Raw Error Body: " +
-                            (response.errorBody() != null ? response.errorBody().toString() : "null"),
-                    ENABLE_TESTING);
+                            (response.errorBody() != null ? response.errorBody().toString() : "null"));
 
             if (response.isSuccessful() && response.body() != null) {
 
                 resultData = new JSONObject(response.body().toString());
                 resultData.put("http_code", httpCode);   // ✅ Inject here
 
-                Messages.showTestLog(TAG, TAG + " Json Response: " + resultData, ENABLE_TESTING);
+                Messages.showTestLog(TAG, TAG + " Json Response: " + resultData);
                 return resultData;
 
             } else if (response.errorBody() != null) {
@@ -47,7 +45,7 @@ public interface APIHelper {
                 resultData = new JSONObject(errorJson);
                 resultData.put("http_code", httpCode);   // ✅ Inject here
 
-                Messages.showTestLog(TAG, TAG + " errorJson: " + resultData, ENABLE_TESTING);
+                Messages.showTestLog(TAG, TAG + " errorJson: " + resultData);
                 return resultData;
 
             } else {
@@ -57,7 +55,7 @@ public interface APIHelper {
                 error.put("message", "No response from server");
                 error.put("http_code", httpCode);   // ✅ Inject here
 
-                Messages.showTestLog(TAG, TAG + " errorJson: " + error, ENABLE_TESTING);
+                Messages.showTestLog(TAG, TAG + " errorJson: " + error);
                 return error;
             }
 
@@ -71,7 +69,7 @@ public interface APIHelper {
                 error.put("message", "Parse error: " + e.getMessage());
                 error.put("http_code", response != null ? response.code() : -1);  // ✅ Safe fallback
 
-                Messages.showTestLog(TAG, TAG + " errorJson: " + error, ENABLE_TESTING);
+                Messages.showTestLog(TAG, TAG + " errorJson: " + error);
                 return error;
 
             } catch (Exception ignored) { }

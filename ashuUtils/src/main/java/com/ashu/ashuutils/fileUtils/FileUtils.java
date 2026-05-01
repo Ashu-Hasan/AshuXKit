@@ -37,6 +37,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -48,6 +49,7 @@ import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
+import com.yalantis.ucrop.UCrop;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -67,86 +69,9 @@ public interface FileUtils {
 
     public static final String PREF_NAME = "app_prefs";
     public static final String KEY_IMAGE_PATH = "image_path";
-    public static int PROFILE_IMAGE_REQUEST = 100, STORAGE_PERMISSION_REQUEST_CODE = 102, CAMARA_PERMISSION_REQUEST_CODE = 103;
 
     public interface CameraSelectionCallback {
         void onCameraSelected(boolean isCamera);
-    }
-
-    public static void showPickImageDialog(Activity activity, int req_code, int pick_design, CameraSelectionCallback callback) {
-        final Dialog dialog = new Dialog(activity);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        dialog.setContentView(R.layout.pick_image_dialog);
-        Window window = dialog.getWindow();
-
-        Objects.requireNonNull(window).setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
-        window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        dialog.setCancelable(false);
-
-        LinearLayout cameraOptionBtn = dialog.findViewById(R.id.cameraOption);
-        cameraOptionBtn.setOnClickListener(v -> {
-
-            takePictureFromCamera(activity, req_code, true);
-            if (callback != null) {
-                callback.onCameraSelected(true);
-            }
-
-            dialog.dismiss();
-        });
-
-        LinearLayout galleryOptionBtn = dialog.findViewById(R.id.galleryOption);
-        galleryOptionBtn.setOnClickListener(v -> {
-
-            choosePictureFromGallery(activity, req_code);
-            if (callback != null) {
-                callback.onCameraSelected(false);
-            }
-            dialog.dismiss();
-        });
-
-        LinearLayout closeBtn = dialog.findViewById(R.id.closeBtn);
-        closeBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-        });
-
-        dialog.show();
-    }
-
-    public static void choosePictureFromGallery(Activity context, int req_code) {
-        /*Intent galleryIntent = new Intent(Intent.ACTION_PICK);
-        galleryIntent.setType("image/*");
-        context.startActivityForResult(galleryIntent, req_code);*/
-
-        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-        intent.setType("image/*");
-        context.startActivityForResult(intent, req_code);
-    }
-
-    public static void takePictureFromCamera(Activity context, int req_code, boolean isFrontCamera) {
-        Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
-        if (isFrontCamera) {
-            cameraIntent.putExtra("android.intent.extras.LENS_FACING_FRONT", 1);
-            cameraIntent.putExtra("android.intent.extras.CAMERA_FACING", 1);
-            cameraIntent.putExtra("android.intent.extra.USE_FRONT_CAMERA", true);
-            cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, setImageUri(context));
-        }
-        context.startActivityForResult(cameraIntent, req_code);
-    }
-
-    public static Uri setImageUri(Context context) {
-        File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "");
-        if (!dir.exists()) dir.mkdirs();
-
-        File file = new File(dir, "image" + System.currentTimeMillis() + ".png");
-        Uri photoURI = FileProvider.getUriForFile(
-                context,
-                context.getPackageName() + ".provider",
-                file
-        );
-
-        setImagePath(context, file.getAbsolutePath());
-        return photoURI;
     }
 
     public static void setImagePath(Context context, String path) {
@@ -159,179 +84,36 @@ public interface FileUtils {
         return prefs.getString(KEY_IMAGE_PATH, null);
     }
 
-
-
-    public static boolean isStoragePermissionGranted(Activity context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES)
-                    == PackageManager.PERMISSION_GRANTED) {
-                Log.v("TAG", "Permission is granted");
-                return true;
-            } else {
-                Log.v("TAG", "Permission is revoked");
-                ActivityCompat.requestPermissions(context, new String[]{Manifest.permission.READ_MEDIA_IMAGES}, 1000);
-                return false;
-            }
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED) {
-                Log.v("TAG", "Permission is granted");
-                return true;
-            } else {
-                Log.v("TAG", "Permission is revoked");
-                ActivityCompat.requestPermissions(context, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1000);
-                return false;
-            }
-        } else {
-            Log.v("TAG", "Permission is granted");
-            return true;
-        }
-    }
-
-
-    public static boolean isCameraPermissionGranted(Activity context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (context.checkSelfPermission(Manifest.permission.CAMERA)
-                    == PackageManager.PERMISSION_GRANTED) {
-                Log.v("TAG", "Permission is granted");
-                return true;
-            } else {
-                Log.v("TAG", "Permission is revoked");
-                ActivityCompat.requestPermissions(context, new String[]{Manifest.permission.CAMERA}, 1001);
-                return false;
-            }
-        } else {
-            Log.v("TAG", "Permission is granted");
-            return true;
-        }
-    }
-
-    // Method to explicitly request camera permission
-    public static void requestCameraPermission(Activity context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            ActivityCompat.requestPermissions(
-                    context,
-                    new String[]{Manifest.permission.CAMERA},
-                    CAMARA_PERMISSION_REQUEST_CODE
-            );
-        }
-    }
-
-    // Method to request storage permission
-    public static void requestStoragePermission(String TAG, Activity context) {
-        Log.d(TAG, "requestStoragePermission Run");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Check if permissions are already granted
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES)
-                    != PackageManager.PERMISSION_GRANTED ||
-                    ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO)
-                            != PackageManager.PERMISSION_GRANTED ||
-                    ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_AUDIO)
-                            != PackageManager.PERMISSION_GRANTED) {
-
-                // Request permissions
-                ActivityCompat.requestPermissions(
-                        context,
-                        new String[]{
-                                Manifest.permission.READ_MEDIA_IMAGES,
-                                Manifest.permission.READ_MEDIA_VIDEO,
-                                Manifest.permission.READ_MEDIA_AUDIO
-                        },
-                        STORAGE_PERMISSION_REQUEST_CODE
-                );
-            } else {
-                Log.d(TAG, "Permissions already granted for Android 14+");
-            }
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Check if READ_EXTERNAL_STORAGE is granted for older versions
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE)
-                    != PackageManager.PERMISSION_GRANTED) {
-
-                // Request permission
-                ActivityCompat.requestPermissions(
-                        context,
-                        new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
-                        STORAGE_PERMISSION_REQUEST_CODE
-                );
-            } else {
-                Log.d(TAG, "Permissions already granted for Android M+");
-            }
-        } else {
-            Log.d(TAG, "No permissions required for Android versions below M");
-        }
-    }
-
     public interface FileCallback {
-        void onFileReady(File readyFile, String readyPath);
+        void onFileReady(CompressFileData selectedImageData);
     }
 
-    public static void handleImagePick(Intent data, boolean isCamera,
-                                       String cameraPath,
-                                       Activity activity,
-                                       ImageView imageView, ProgressDialog progressDialog, FileCallback callback) {
-        if (progressDialog != null) {
-            // Show progress dialog
-            progressDialog = new ProgressDialog(activity);
-            progressDialog.setMessage("Loading image...");
-            progressDialog.setCancelable(false);
-            progressDialog.show();
+
+
+
+    public static File copyUriToCacheFile(Context context, Uri uri) throws IOException {
+
+        InputStream inputStream = context.getContentResolver().openInputStream(uri);
+        if (inputStream == null) return null;
+
+        File cacheFile = new File(
+                context.getCacheDir(),
+                "IMG_" + System.currentTimeMillis() + ".jpg"
+        );
+
+        OutputStream outputStream = new FileOutputStream(cacheFile);
+
+        byte[] buffer = new byte[4096];
+        int read;
+        while ((read = inputStream.read(buffer)) != -1) {
+            outputStream.write(buffer, 0, read);
         }
 
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        Handler handler = new Handler(Looper.getMainLooper());
+        outputStream.flush();
+        outputStream.close();
+        inputStream.close();
 
-        ProgressDialog finalProgressDialog = progressDialog;
-        executor.execute(() -> {
-            String path = "";
-            if (isCamera) {
-                path = cameraPath;
-            } else {
-                path = getAbsolutePath(activity, data.getData());
-            }
-
-            File imageFile = new File(Objects.requireNonNull(path));
-
-            if (imageFile.length() > 800 * 1024) {
-                imageFile = compressImage(imageFile, 800 * 1024).getFileFormat();
-            }
-
-            File finalFile = imageFile;
-            String finalPath = path;
-
-            handler.post(() -> {
-                if (imageView != null) {
-                    // Load image with Glide and handle progress dialog dismissal
-                    Glide.with(activity)
-                            .load(finalFile)
-                            .listener(new RequestListener<Drawable>() {
-                                @Override
-                                public boolean onLoadFailed(@Nullable GlideException e, Object model,
-                                                            @NonNull Target<Drawable> target, boolean isFirstResource) {
-                                    if (finalProgressDialog != null && finalProgressDialog.isShowing()){
-                                        finalProgressDialog.dismiss();
-                                    }
-                                    Toast.makeText(activity, "Failed to load image", Toast.LENGTH_SHORT).show();
-                                    return false;
-                                }
-
-                                @Override
-                                public boolean onResourceReady(@NonNull Drawable resource, @NonNull Object model,
-                                                               Target<Drawable> target,
-                                                               @NonNull DataSource dataSource, boolean isFirstResource) {
-                                    if (finalProgressDialog != null && finalProgressDialog.isShowing())
-                                        finalProgressDialog.dismiss();
-                                    return false;
-                                }
-                            })
-                            .into(imageView);
-
-                }
-
-                if (callback != null) {
-                    callback.onFileReady(finalFile, finalPath);
-                }
-            });
-        });
+        return cacheFile;
     }
 
 
@@ -345,89 +127,6 @@ public interface FileUtils {
             return cursor.getString(column_index);
         } else
             return null;
-    }
-
-    public static CompressFileData compressImage(File originalFile, int targetSizeKB) {
-        CompressFileData data = new CompressFileData();
-        try {
-            // Decode image with scaling options to avoid OOM for large files
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inJustDecodeBounds = true;
-            BitmapFactory.decodeFile(originalFile.getAbsolutePath(), options);
-
-            options.inSampleSize = calculateInSampleSize(options); // example target size
-            options.inJustDecodeBounds = false;
-            Bitmap bitmap = BitmapFactory.decodeFile(originalFile.getAbsolutePath(), options);
-
-            // Check and handle image orientation
-            ExifInterface exif = new ExifInterface(originalFile.getAbsolutePath());
-            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
-            int rotationAngle = switch (orientation) {
-                case ExifInterface.ORIENTATION_ROTATE_90 -> 90;
-                case ExifInterface.ORIENTATION_ROTATE_180 -> 180;
-                case ExifInterface.ORIENTATION_ROTATE_270 -> 270;
-                default -> 0;
-            };
-
-            if (rotationAngle != 0) {
-                Matrix matrix = new Matrix();
-                matrix.postRotate(rotationAngle);
-                bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
-            }
-
-            // Set initial quality and target size in bytes
-            int quality = 90;
-            int targetSizeBytes = targetSizeKB * 1024; // Convert KB to Bytes
-
-            // Compress in a loop, adjusting quality to reach target size
-            File compressedFile = new File(originalFile.getParent(), "compressed_" + originalFile.getName());
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            do {
-                byteArrayOutputStream.reset(); // Clear the stream for new compression attempt
-                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, byteArrayOutputStream);
-                quality -= 5; // Decrease quality step-by-step if target size is not met
-            } while (byteArrayOutputStream.size() > targetSizeBytes && quality > 0);
-
-            // Save the compressed image to file
-            try (FileOutputStream fos = new FileOutputStream(compressedFile)) {
-                fos.write(byteArrayOutputStream.toByteArray());
-            }
-
-            // Convert compressed image to Base64
-            String base64String = Base64.encodeToString(byteArrayOutputStream.toByteArray(), Base64.DEFAULT);
-
-            // Set data in CompressFileData object
-            data.setBitmapFormat(bitmap);
-            data.setFileFormat(compressedFile);
-            data.setString64BaseFormat(base64String);
-
-            // Recycle bitmap if no longer needed
-            if (!bitmap.isRecycled()) {
-                bitmap.recycle();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            data.setBitmapFormat(null);
-            data.setFileFormat(null);
-            data.setString64BaseFormat(null);
-        }
-        return data;
-    }
-
-    private static int calculateInSampleSize(BitmapFactory.Options options) {
-        int height = options.outHeight;
-        int width = options.outWidth;
-        int inSampleSize = 1;
-
-        if (height > 1000 || width > 1000) {
-            final int halfHeight = height / 2;
-            final int halfWidth = width / 2;
-
-            while ((halfHeight / inSampleSize) >= 1000 && (halfWidth / inSampleSize) >= 1000) {
-                inSampleSize *= 2;
-            }
-        }
-        return inSampleSize;
     }
 
     private static byte[] readFileAsByteArray(String filePath) throws IOException {
@@ -523,7 +222,7 @@ public interface FileUtils {
     }
 
 
-    public static void downloadImageIfNotExists(String TAG, Context context, String imageUrl, ImageView imageView, ImageView viewImageCrossIcon, String appImageFolderName) {
+    public static void downloadImageIfNotExists(String TAG, boolean showTestLogs, Context context, String imageUrl, ImageView imageView, ImageView viewImageCrossIcon, String appImageFolderName) {
         ProgressDialog progressDialog = null;
 
         if (imageView != null) {
@@ -573,7 +272,7 @@ public interface FileUtils {
                 Uri imageUri = context.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
 
                 if (imageUri == null) {
-                    Log.e(TAG, "Failed to create image URI in MediaStore");
+                    if (showTestLogs) Log.e(TAG, "Failed to create image URI in MediaStore");
                     if (finalProgressDialog != null)
                         ((Activity) context).runOnUiThread(finalProgressDialog::dismiss);
                     return;
@@ -602,10 +301,10 @@ public interface FileUtils {
                     });
                 }
 
-                Log.d(TAG, "Image saved in "+appImageFolderName);
+                if (showTestLogs) Log.d(TAG, "Image saved in "+appImageFolderName);
 
             } catch (Exception e) {
-                Log.e(TAG, "Download failed: " + e.getMessage(), e);
+                if (showTestLogs) Log.e(TAG, "Download failed: " + e.getMessage(), e);
                 ((Activity) context).runOnUiThread(() -> {
                     if (finalProgressDialog != null) finalProgressDialog.dismiss();
                 });
