@@ -38,14 +38,190 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ImageProcessingUtils {
+    String TAG, appImageFolderName;
+    Activity activity;
+    Intent data;
+    boolean isCamera, isCropped;
+    String cameraPath;
+    ImageView imageView;
+    ProgressDialog progressDialog;
 
-    public static void handleImagePick(String TAG, Activity activity, String appImageFolderName, Intent data, boolean isCamera, boolean isCropped,
-                                       String cameraPath,
-                                       ImageView imageView,
-                                       ProgressDialog progressDialog,
-                                       FileUtils.FileCallback callback) {
 
-        Messages.showTestLog(TAG, "🟢 handleImagePick called - isCamera: " + isCamera + ", cameraPath: " + cameraPath);
+
+    /**
+     * Handles image coming from Camera.
+     *
+     * @param TAG            Logging tag for debugging
+     * @param activity       Activity context
+     * @param cameraPath     Absolute file path returned from camera capture
+     * @param imageView      Optional ImageView to display result
+     * @param progressDialog Optional loader
+     * @param callback       Result callback
+     */
+    public static void handleCameraImage(
+            String TAG,
+            Activity activity,
+            String cameraPath,
+            ImageView imageView,
+            ProgressDialog progressDialog,
+            FileUtils.FileCallback callback
+    ) {
+        Messages.showTestLog(TAG, "📸 Camera Image Path: " + cameraPath);
+
+        if (cameraPath == null || cameraPath.isEmpty()) {
+            Toast.makeText(activity, "Camera image not found", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        File imageFile = new File(cameraPath);
+        processAndDisplayImage(TAG, activity, imageFile, imageView, progressDialog, callback);
+    }
+
+    /**
+     * Handles image picked from Gallery using Intent data.
+     * Supports both single and multiple selection.
+     *
+     * @param TAG            Logging tag
+     * @param activity       Activity context
+     * @param data           Intent data returned from gallery
+     * @param imageView      Optional preview ImageView
+     * @param progressDialog Loader dialog
+     * @param callback       Result callback
+     */
+    public static void handleGalleryFromIntent(
+            String TAG,
+            Activity activity,
+            Intent data,
+            ImageView imageView,
+            ProgressDialog progressDialog,
+            FileUtils.FileCallback callback
+    ) {
+        Uri selectedUri = null;
+
+        // Case 1: Single image
+        if (data.getData() != null) {
+            selectedUri = data.getData();
+            Messages.showTestLog(TAG, "🖼️ getData URI: " + selectedUri);
+        }
+
+        // Case 2: Multiple images / Android 13+
+        else if (data.getClipData() != null && data.getClipData().getItemCount() > 0) {
+            selectedUri = data.getClipData().getItemAt(0).getUri();
+            Messages.showTestLog(TAG, "🖼️ ClipData URI: " + selectedUri);
+        }
+
+        if (selectedUri == null) {
+            Toast.makeText(activity, "No image selected", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        handleGalleryFromUri(TAG, activity, selectedUri, imageView, progressDialog, callback);
+    }
+
+    /**
+     * Handles image when direct URI is available.
+     * Used for Android 13+, Xiaomi devices, or permission-less pickers.
+     *
+     * @param TAG            Logging tag
+     * @param activity       Activity context
+     * @param uri            Image URI
+     * @param imageView      Optional preview
+     * @param progressDialog Loader
+     * @param callback       Result callback
+     */
+    public static void handleGalleryFromUri(
+            String TAG,
+            Activity activity,
+            Uri uri,
+            ImageView imageView,
+            ProgressDialog progressDialog,
+            FileUtils.FileCallback callback
+    ) {
+        try {
+            File imageFile = FileUtils.copyUriToCacheFile(activity, uri);
+
+            if (imageFile == null || !imageFile.exists()) {
+                throw new IOException("Failed to copy image");
+            }
+
+            Messages.showTestLog(TAG, "📂 File copied: " + imageFile.getAbsolutePath());
+
+            processAndDisplayImage(TAG, activity, imageFile, imageView, progressDialog, callback);
+
+        } catch (Exception e) {
+            Messages.showTestLog(TAG, "❌ Error: " + e.getMessage());
+            Toast.makeText(activity, "Unable to load image", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+
+    /**
+     * Handles cropped image result from uCrop.
+     *
+     * This method:
+     * - Retrieves cropped image URI from UCrop
+     * - Converts URI → File
+     * - Passes it to common processor
+     *
+     * @param TAG            Log tag for debugging
+     * @param activity       Activity context
+     * @param data           Intent returned from UCrop
+     * @param imageView      Optional preview ImageView
+     * @param progressDialog Optional loader
+     * @param callback       Result callback
+     */
+    public static void handleCroppedImage(
+            String TAG,
+            Activity activity,
+            Intent data,
+            ImageView imageView,
+            ProgressDialog progressDialog,
+            FileUtils.FileCallback callback
+    ) {
+        try {
+            // ✅ Get cropped image URI from UCrop
+            Uri croppedUri = UCrop.getOutput(data);
+
+            if (croppedUri == null) {
+                throw new IllegalStateException("UCrop returned null URI");
+            }
+
+            Log.i(TAG, "✂️ Cropped Image URI: " + croppedUri);
+
+            // ✅ Convert URI → File (safe approach)
+            File imageFile = FileUtils.copyUriToCacheFile(activity, croppedUri);
+
+            if (imageFile == null || !imageFile.exists()) {
+                throw new IOException("Failed to copy cropped image");
+            }
+
+            Log.i(TAG, "📂 Cropped File Path: " + imageFile.getAbsolutePath());
+
+            // 🔥 Send to common processor
+            processAndDisplayImage(TAG, activity, imageFile, imageView, progressDialog, callback);
+
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Crop handling error: " + e.getMessage());
+            Toast.makeText(activity, "Failed to process cropped image", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Common method to:
+     * - Compress image
+     * - Load into ImageView (Glide)
+     * - Return result via callback
+     *
+     * This keeps all heavy work in one place.
+     */
+    private static void processAndDisplayImage(
+            String TAG,
+            Activity activity,
+            File imageFile,
+            ImageView imageView,
+            ProgressDialog progressDialog,
+            FileUtils.FileCallback callback
+    ) {
 
         if (progressDialog != null) {
             progressDialog = new ProgressDialog(activity);
@@ -56,141 +232,39 @@ public class ImageProcessingUtils {
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Handler handler = new Handler(Looper.getMainLooper());
-        ProgressDialog finalProgressDialog = progressDialog;
+        ProgressDialog finalDialog = progressDialog;
 
         executor.execute(() -> {
-            String path = "";
-
             try {
-                if (isCropped) {
-                    Uri croppedImageUri = UCrop.getOutput(data);  // Get Cropped Image URI
-                    if (croppedImageUri != null) {
-
-// 🟢 Case 1: Single image (some devices)
-                        if (data.getData() != null) {
-                            croppedImageUri = data.getData();
-                            Messages.showTestLog(TAG, "🖼️ Picked image URI (getData): " + croppedImageUri);
-                        }
-
-// 🟢 Case 2: Single / Multiple images (Xiaomi / Android 13)
-                        else if (data.getClipData() != null && data.getClipData().getItemCount() > 0) {
-                            croppedImageUri = data.getClipData().getItemAt(0).getUri();
-                            Messages.showTestLog(TAG, "🖼️ Picked image URI (ClipData): " + croppedImageUri);
-                        }
-
-                        if (croppedImageUri == null) {
-                            throw new IllegalStateException("Gallery returned null URI");
-                        }
-
-// ✅ COPY URI → FILE (do NOT resolve real path)
-                        File imageFile = FileUtils.copyUriToCacheFile(activity, croppedImageUri);
-                        if (imageFile == null || !imageFile.exists()) {
-                            throw new IOException("Failed to copy image from URI");
-                        }
-
-                        path = imageFile.getAbsolutePath();
-                    }
-                } else {
-                    if (isCamera) {
-                        path = cameraPath;
-                        Messages.showTestLog(TAG, "📸 Using camera image path: " + path);
-                    } else {
-                        Uri selectedUri = null;
-
-// 🟢 Case 1: Single image (some devices)
-                        if (data.getData() != null) {
-                            selectedUri = data.getData();
-                            Messages.showTestLog(TAG, "🖼️ Picked image URI (getData): " + selectedUri);
-                        }
-
-// 🟢 Case 2: Single / Multiple images (Xiaomi / Android 13)
-                        else if (data.getClipData() != null && data.getClipData().getItemCount() > 0) {
-                            selectedUri = data.getClipData().getItemAt(0).getUri();
-                            Messages.showTestLog(TAG, "🖼️ Picked image URI (ClipData): " + selectedUri);
-                        }
-
-                        if (selectedUri == null) {
-                            throw new IllegalStateException("Gallery returned null URI");
-                        }
-
-// ✅ COPY URI → FILE (do NOT resolve real path)
-                        File imageFile = FileUtils.copyUriToCacheFile(activity, selectedUri);
-                        if (imageFile == null || !imageFile.exists()) {
-                            throw new IOException("Failed to copy image from URI");
-                        }
-
-                        path = imageFile.getAbsolutePath();
-                        Messages.showTestLog(TAG, "📂 Copied image path: " + path);
-
-                    }
-                }
-
-                if (path == null || path.isEmpty()) {
-                    Messages.showTestLog(TAG, "❌ Path is null or empty!");
-                    handler.post(() -> {
-                        if (finalProgressDialog != null && finalProgressDialog.isShowing())
-                            finalProgressDialog.dismiss();
-                        Toast.makeText(activity, "Unable to load this image, Please another image", Toast.LENGTH_SHORT).show();
-                    });
-                    return;
-                }
-
-                File imageFile = new File(path);
-                if (!imageFile.exists()) {
-                    Messages.showTestLog(TAG, "❌ File does not exist at: " + path);
-                } else {
-                    Messages.showTestLog(TAG, "✅ File exists at: " + path);
-                }
-
-                CompressFileData selectedImageData = compressImage(TAG, activity, appImageFolderName, imageFile, 1024);
-                selectedImageData.setFilePath(path);
-
-                Messages.showTestLog(TAG, "🧩 Compression complete: " +
-                        (selectedImageData.getFileFormat() != null ?
-                                selectedImageData.getFileFormat().getAbsolutePath() : "null"));
+                // 🔥 Compress image
+                CompressFileData data = compressImage(TAG, activity, "AppFolder", imageFile, 1024);
 
                 handler.post(() -> {
+
+                    // Load into ImageView
                     if (imageView != null) {
-                        // Set image on UI
                         Glide.with(activity)
                                 .load(imageFile)
-                                .listener(new RequestListener<Drawable>() {
-                                    @Override
-                                    public boolean onLoadFailed(@Nullable GlideException e, Object model,
-                                                                @NonNull Target<Drawable> target, boolean isFirstResource) {
-                                        Messages.showTestLog(TAG, "❌ Glide failed to load image: " + e);
-                                        if (finalProgressDialog != null && finalProgressDialog.isShowing())
-                                            finalProgressDialog.dismiss();
-                                        Toast.makeText(activity, "Unable to load this image, Please another image", Toast.LENGTH_SHORT).show();
-                                        return false;
-                                    }
-
-                                    @Override
-                                    public boolean onResourceReady(@NonNull Drawable resource, @NonNull Object model,
-                                                                   Target<Drawable> target,
-                                                                   @NonNull DataSource dataSource, boolean isFirstResource) {
-                                        Messages.showTestLog(TAG, "✅ Image successfully loaded into ImageView.");
-                                        if (finalProgressDialog != null && finalProgressDialog.isShowing())
-                                            finalProgressDialog.dismiss();
-                                        return false;
-                                    }
-                                })
                                 .into(imageView);
+                    }
+
+                    // Dismiss loader
+                    if (finalDialog != null && finalDialog.isShowing()) {
+                        finalDialog.dismiss();
                     }
 
                     // Callback
                     if (callback != null) {
-                        Messages.showTestLog(TAG, "📤 Returning file to callback: " + selectedImageData.getFilePath());
-                        callback.onFileReady(selectedImageData);
+                        callback.onFileReady(data);
                     }
                 });
 
             } catch (Exception e) {
-                Messages.showTestLog(TAG, "🔥 Exception in handleImagePick: " + e.getMessage());
                 handler.post(() -> {
-                    if (finalProgressDialog != null && finalProgressDialog.isShowing())
-                        finalProgressDialog.dismiss();
-                    Toast.makeText(activity, "Unable to load this image, Please another image", Toast.LENGTH_SHORT).show();
+                    if (finalDialog != null && finalDialog.isShowing()) {
+                        finalDialog.dismiss();
+                    }
+                    Toast.makeText(activity, "Error processing image", Toast.LENGTH_SHORT).show();
                 });
             }
         });
