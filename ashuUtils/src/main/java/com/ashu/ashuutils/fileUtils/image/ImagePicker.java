@@ -25,7 +25,7 @@ import com.ashu.ashuutils.fileUtils.PermissionUtils;
 import java.io.File;
 import java.util.Objects;
 
-public class ImagePickerWithPermission {
+public class ImagePicker {
 
     /**
      * Displays a custom dialog to pick an image either from Camera or Gallery.
