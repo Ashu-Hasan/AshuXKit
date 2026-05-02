@@ -8,7 +8,6 @@ import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.util.Log;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
@@ -28,61 +27,125 @@ import java.util.Objects;
 
 public class ImagePickerWithPermission {
 
-    public static void showPickImageDialog(String TAG, Activity activity, int req_code, int designColor, FileUtils.CameraSelectionCallback callback) {
+    /**
+     * Displays a custom dialog to pick an image either from Camera or Gallery.
+     *
+     * @param TAG             Used for logging/debugging. Helps developers track logs easily
+     *                        when using this utility inside different modules or apps.
+     *
+     * @param activity        Activity context required to create and display the dialog,
+     *                        access resources, and launch intents.
+     *
+     * @param req_code        Request code used to identify the result in onActivityResult()
+     *                        (for camera or gallery response handling).
+     *
+     * @param designColor     Resource color ID used to dynamically tint dialog icons
+     *                        (for UI customization based on app theme).
+     *
+     * @param withPermission  Defines how image selection should work:
+     *                        - true  → Use runtime permissions (for apps heavily using media like gallery apps)
+     *                        - false → Skip permission flow (for limited use like profile image selection)
+     *
+     * @param callback        Interface callback to return user actions (camera/gallery selection)
+     *                        and image result back to the calling Activity.
+     */
+    public static void showPickImageDialog(String TAG, Activity activity, int req_code, int designColor, boolean withPermission, FileUtils.ResultCallback callback) {
+
+        // Create dialog instance using activity context
         final Dialog dialog = new Dialog(activity);
+
+        // Remove default dialog title
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        // Set custom layout for dialog UI
         dialog.setContentView(R.layout.pick_image_dialog);
+
+        // Get dialog window reference
         Window window = dialog.getWindow();
 
-        Objects.requireNonNull(window).setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
+        // Ensure window is not null and set layout width/height
+        Objects.requireNonNull(window).setLayout(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT
+        );
+
+        // Set transparent background for rounded/custom UI
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+
+        // Prevent dialog dismissal on outside touch or back press
         dialog.setCancelable(false);
 
-        // 🔥 Resolve color from resources
+        // 🔥 Resolve color from resources (theme-based dynamic color)
         int color = ContextCompat.getColor(activity, designColor);
 
+        // Get main image view and apply tint color
         AppCompatImageView imageView = dialog.findViewById(R.id.image_view_dialog);
         imageView.setColorFilter(color);
 
+        // Get camera icon and apply tint
         ImageView cameraIcon = dialog.findViewById(R.id.cameraIcon);
         cameraIcon.setColorFilter(color);
 
+        // Get gallery icon and apply tint
         ImageView galleryIcon = dialog.findViewById(R.id.galleryIcon);
         galleryIcon.setColorFilter(color);
 
+        // Get close icon and apply tint
         ImageView closeIcon = dialog.findViewById(R.id.closeIcon);
         closeIcon.setColorFilter(color);
 
+        // Camera option button
         LinearLayout cameraOptionBtn = dialog.findViewById(R.id.cameraOption);
         cameraOptionBtn.setOnClickListener(v -> {
 
+            // Launch camera intent
             takePictureFromCamera(TAG, activity, req_code, true);
+
+            // Notify callback that camera is selected
             if (callback != null) {
                 callback.onCameraSelected(true);
             }
 
+            // Close dialog
             dialog.dismiss();
         });
 
+        // Gallery option button
         LinearLayout galleryOptionBtn = dialog.findViewById(R.id.galleryOption);
         galleryOptionBtn.setOnClickListener(v -> {
 
-            choosePictureFromGallery(TAG, activity, req_code);
-            if (callback != null) {
-                callback.onCameraSelected(false);
+            if (withPermission) {
+                // Open gallery with runtime permission handling
+                choosePictureFromGalleryWithPermission(TAG, activity, req_code);
+
+                // Notify callback that gallery is selected
+                if (callback != null) {
+                    callback.onCameraSelected(false);
+                }
+            } else {
+                // Open gallery without permission (for limited/simple use cases)
+                ImagePickerWithoutPermission.pickImage(
+                        activity,
+                        callback::imageUriWithoutPermission
+                );
             }
+
+            // Close dialog
             dialog.dismiss();
         });
 
+        // Close button action
         LinearLayout closeBtn = dialog.findViewById(R.id.closeBtn);
         closeBtn.setOnClickListener(v -> {
+            // Simply dismiss dialog
             dialog.dismiss();
         });
 
+        // Show dialog on screen
         dialog.show();
     }
 
-    public static void choosePictureFromGallery(String TAG, Activity context, int req_code) {
+    public static void choosePictureFromGalleryWithPermission(String TAG, Activity context, int req_code) {
         if (PermissionUtils.isStoragePermissionGranted(TAG, context)) {
             Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
             intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
