@@ -85,30 +85,26 @@ public class PermissionUtils {
     }
 
     public static boolean isCameraPermissionGranted(String TAG, Activity context) {
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (context.checkSelfPermission(Manifest.permission.CAMERA)
-                    == PackageManager.PERMISSION_GRANTED) {
-                Messages.showTestLog(TAG, "Permission is granted");
-                return true;
-            } else {
-                Messages.showTestLog(TAG, "Permission is revoked");
-                ActivityCompat.requestPermissions(context, new String[]{Manifest.permission.CAMERA}, 1001);
-                return false;
-            }
-        } else {
-            Messages.showTestLog(TAG, "Permission is granted");
-            return true;
+
+            boolean granted = context.checkSelfPermission(Manifest.permission.CAMERA)
+                    == PackageManager.PERMISSION_GRANTED;
+
+            Messages.showTestLog(TAG, granted ? "✅ Permission granted" : "❌ Permission revoked");
+
+            return granted;
         }
+
+        return true;
     }
 
     // Method to explicitly request camera permission
     public static void requestCameraPermission(Activity context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            ActivityCompat.requestPermissions(
-                    context,
-                    new String[]{Manifest.permission.CAMERA},
-                    AppConstants.CAMERA_PERMISSION_REQUEST_CODE
-            );
-        }
+        ActivityCompat.requestPermissions(
+                context,
+                new String[]{Manifest.permission.CAMERA},
+                AppConstants.CAMERA_PERMISSION_REQUEST_CODE
+        );
     }
 }

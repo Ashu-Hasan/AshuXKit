@@ -20,6 +20,9 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 
+import androidx.core.content.FileProvider;
+
+import com.ashu.ashuutils.Messages;
 import com.ashu.ashuutils.models.CompressFileData;
 
 import java.io.ByteArrayOutputStream;
@@ -32,6 +35,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLDecoder;
 
 public interface FileUtils {
 
@@ -125,6 +129,29 @@ public interface FileUtils {
         return uri.getPath(); // Fallback
     }
 
+    public static Uri getUriFromBitmap(Bitmap bitmap, Context context) {
+        try {
+            // Create a temporary file in the cache directory
+            File imagesDir = new File(context.getCacheDir(), "images");
+            if (!imagesDir.exists()) imagesDir.mkdirs();
+
+            File file = new File(imagesDir, "camera_image.jpg");
+
+            FileOutputStream outputStream = new FileOutputStream(file);
+
+            // Compress and save the bitmap to the file
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
+            outputStream.flush();
+            outputStream.close();
+
+            // Return a content URI using FileProvider
+            return FileProvider.getUriForFile(context, context.getPackageName() + ".provider", file);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     public static Bitmap getBitmapFromUri(Activity context, Uri uri) throws IOException {
         InputStream input = context.getContentResolver().openInputStream(uri);
 
@@ -191,7 +218,7 @@ public interface FileUtils {
     }
 
 
-    public static void downloadImageIfNotExists(String TAG, boolean showTestLogs, Context context, String imageUrl, ImageView imageView, ImageView viewImageCrossIcon, String appImageFolderName) {
+    public static void downloadImageIfNotExists(String TAG, Context context, String imageUrl, ImageView imageView, ImageView viewImageCrossIcon, String appImageFolderName) {
         ProgressDialog progressDialog = null;
 
         if (imageView != null) {
@@ -241,7 +268,7 @@ public interface FileUtils {
                 Uri imageUri = context.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
 
                 if (imageUri == null) {
-                    if (showTestLogs) Log.e(TAG, "Failed to create image URI in MediaStore");
+                    Messages.showTestLog(TAG, "Failed to create image URI in MediaStore");
                     if (finalProgressDialog != null)
                         ((Activity) context).runOnUiThread(finalProgressDialog::dismiss);
                     return;
@@ -270,10 +297,10 @@ public interface FileUtils {
                     });
                 }
 
-                if (showTestLogs) Log.d(TAG, "Image saved in "+appImageFolderName);
+                Messages.showTestLog(TAG, "Image saved in "+appImageFolderName);
 
             } catch (Exception e) {
-                if (showTestLogs) Log.e(TAG, "Download failed: " + e.getMessage(), e);
+                Messages.showTestLog(TAG, "Download failed: " + e.getMessage());
                 ((Activity) context).runOnUiThread(() -> {
                     if (finalProgressDialog != null) finalProgressDialog.dismiss();
                 });
@@ -404,6 +431,66 @@ public interface FileUtils {
         } catch (MalformedURLException e) {
             e.printStackTrace();
             return "";
+        }
+    }
+
+    public static String getFileNameFromPath(Context context, String pathOrUrl) {
+        String TAG = "FileNameResolver";
+        if (pathOrUrl == null || pathOrUrl.trim().isEmpty()) {
+            Log.w(TAG, "⚠️ Provided pathOrUrl is null or empty.");
+            return "unknown_file";
+        }
+
+        try {
+            Uri uri = Uri.parse(pathOrUrl);
+
+            // Case 1️⃣: If it's a content:// URI (from MediaStore or FileProvider)
+            if ("content".equalsIgnoreCase(uri.getScheme())) {
+                Cursor cursor = null;
+                try {
+                    cursor = context.getContentResolver().query(uri, null, null, null, null);
+                    if (cursor != null && cursor.moveToFirst()) {
+                        int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                        if (nameIndex != -1) {
+                            String fileName = cursor.getString(nameIndex);
+                            Log.i(TAG, "📄 File name from content URI: " + fileName);
+                            return fileName;
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "🔥 Error reading content URI: " + e.getMessage());
+                } finally {
+                    if (cursor != null) cursor.close();
+                }
+            }
+
+            // Case 2️⃣: If it's a file:// URI or a normal file path
+            if (pathOrUrl.startsWith("file://") || new File(pathOrUrl).exists()) {
+                File file = new File(pathOrUrl.replace("file://", ""));
+                String fileName = file.getName();
+                Log.i(TAG, "📁 File name from path: " + fileName);
+                return fileName;
+            }
+
+            // Case 3️⃣: If it's a URL (e.g., https://example.com/file.pdf)
+            if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
+                String fileName = pathOrUrl.substring(pathOrUrl.lastIndexOf('/') + 1);
+                try {
+                    fileName = URLDecoder.decode(fileName, "UTF-8"); // handle %20 etc.
+                } catch (Exception ignore) {
+                }
+                Log.i(TAG, "🌐 File name from URL: " + fileName);
+                return fileName;
+            }
+
+            // Case 4️⃣: Fallback (extract after last slash)
+            String fallback = pathOrUrl.substring(pathOrUrl.lastIndexOf('/') + 1);
+            Log.w(TAG, "⚠️ Fallback file name used: " + fallback);
+            return fallback;
+
+        } catch (Exception e) {
+            Log.e(TAG, "🔥 Exception in getFileNameFromPath: " + e.getMessage(), e);
+            return "unknown_file";
         }
     }
 

@@ -20,7 +20,9 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.ashu.ashuutils.AppConstants;
 import com.ashu.ashuutils.Messages;
+import com.ashu.ashuutils.R;
 import com.ashu.ashuutils.fileUtils.FileUtils;
 import com.ashu.ashuutils.models.CompressFileData;
 import com.bumptech.glide.Glide;
@@ -34,19 +36,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ImageProcessingUtils {
-    String TAG, appImageFolderName;
-    Activity activity;
-    Intent data;
-    boolean isCamera, isCropped;
-    String cameraPath;
-    ImageView imageView;
-    ProgressDialog progressDialog;
-
-
 
     /**
      * Handles image coming from Camera.
@@ -56,6 +50,7 @@ public class ImageProcessingUtils {
      * @param cameraPath     Absolute file path returned from camera capture
      * @param imageView      Optional ImageView to display result
      * @param progressDialog Optional loader
+     * @param cropImage to allow the crop to image
      * @param callback       Result callback
      */
     public static void handleCameraImage(
@@ -63,6 +58,7 @@ public class ImageProcessingUtils {
             Activity activity,
             String cameraPath,
             ImageView imageView,
+            boolean cropImage,
             ProgressDialog progressDialog,
             FileUtils.FileCallback callback
     ) {
@@ -74,7 +70,7 @@ public class ImageProcessingUtils {
         }
 
         File imageFile = new File(cameraPath);
-        processAndDisplayImage(TAG, activity, imageFile, imageView, progressDialog, callback);
+        processAndDisplayImage(TAG, activity, imageFile, imageView, cropImage, progressDialog, callback);
     }
 
     /**
@@ -93,6 +89,7 @@ public class ImageProcessingUtils {
             Activity activity,
             Intent data,
             ImageView imageView,
+            boolean cropImage,
             ProgressDialog progressDialog,
             FileUtils.FileCallback callback
     ) {
@@ -115,7 +112,7 @@ public class ImageProcessingUtils {
             return;
         }
 
-        handleGalleryFromUri(TAG, activity, selectedUri, imageView, progressDialog, callback);
+        handleGalleryFromUri(TAG, activity, selectedUri, imageView, cropImage, progressDialog, callback);
     }
 
     /**
@@ -134,6 +131,7 @@ public class ImageProcessingUtils {
             Activity activity,
             Uri uri,
             ImageView imageView,
+            boolean cropImage,
             ProgressDialog progressDialog,
             FileUtils.FileCallback callback
     ) {
@@ -146,7 +144,7 @@ public class ImageProcessingUtils {
 
             Messages.showTestLog(TAG, "📂 File copied: " + imageFile.getAbsolutePath());
 
-            processAndDisplayImage(TAG, activity, imageFile, imageView, progressDialog, callback);
+            processAndDisplayImage(TAG, activity, imageFile, imageView, cropImage, progressDialog, callback);
 
         } catch (Exception e) {
             Messages.showTestLog(TAG, "❌ Error: " + e.getMessage());
@@ -198,7 +196,7 @@ public class ImageProcessingUtils {
             Log.i(TAG, "📂 Cropped File Path: " + imageFile.getAbsolutePath());
 
             // 🔥 Send to common processor
-            processAndDisplayImage(TAG, activity, imageFile, imageView, progressDialog, callback);
+            processAndDisplayImage(TAG, activity, imageFile, imageView, false, progressDialog, callback);
 
         } catch (Exception e) {
             Log.e(TAG, "❌ Crop handling error: " + e.getMessage());
@@ -219,10 +217,12 @@ public class ImageProcessingUtils {
             Activity activity,
             File imageFile,
             ImageView imageView,
+            boolean cropImage,
             ProgressDialog progressDialog,
             FileUtils.FileCallback callback
     ) {
 
+        // Show loader (UI thread)
         if (progressDialog != null) {
             progressDialog = new ProgressDialog(activity);
             progressDialog.setMessage("Loading image...");
@@ -236,13 +236,29 @@ public class ImageProcessingUtils {
 
         executor.execute(() -> {
             try {
-                // 🔥 Compress image
+
+                Messages.showTestLog(TAG, "🧩 Starting image processing...");
+
+                // 🔥 Compress image (BACKGROUND THREAD)
                 CompressFileData data = compressImage(TAG, activity, "AppFolder", imageFile, 1024);
 
+                Messages.showTestLog(TAG, "✅ Compression completed");
+
+                // 🔥 Decode bitmap (BACKGROUND THREAD)
+                Bitmap croppedBitmap = null;
+                if (cropImage) {
+                    croppedBitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
+                    Messages.showTestLog(TAG, "🖼️ Bitmap decoded for crop");
+                }
+
+                Bitmap finalCroppedBitmap = croppedBitmap;
+
+                // 🔁 Switch to MAIN THREAD
                 handler.post(() -> {
 
-                    // Load into ImageView
+                    // Load into ImageView (UI thread)
                     if (imageView != null) {
+                        Messages.showTestLog(TAG, "📸 Loading image into ImageView");
                         Glide.with(activity)
                                 .load(imageFile)
                                 .into(imageView);
@@ -251,19 +267,50 @@ public class ImageProcessingUtils {
                     // Dismiss loader
                     if (finalDialog != null && finalDialog.isShowing()) {
                         finalDialog.dismiss();
+                        Messages.showTestLog(TAG, "⏹️ Loader dismissed");
                     }
 
                     // Callback
                     if (callback != null) {
+                        Messages.showTestLog(TAG, "📤 Returning file via callback");
                         callback.onFileReady(data);
                     }
+
+                    // ✂️ Show crop dialog (UI thread)
+                    if (cropImage && finalCroppedBitmap != null) {
+
+                        Messages.showTestLog(TAG, "✂️ Showing crop dialog");
+
+                        Uri cropUri = FileUtils.getUriFromBitmap(finalCroppedBitmap, activity);
+
+                        ImagePicker.showCropOptionDialog(
+                                TAG,
+                                activity,
+                                cropUri,
+                                AppConstants.IMAGE_CROP_REQUEST,
+                                "cropped_image",
+                                R.drawable.gallery_icon,
+                                R.color.black,
+                                new ImagePicker.CropImageCallback() {
+                                    @Override
+                                    public void onCropOptionCanceled() {
+                                        Messages.showTestLog(TAG, "❌ Crop canceled by user");
+                                    }
+                                }
+                        );
+                    }
+
                 });
 
             } catch (Exception e) {
+
+                Messages.showTestLog(TAG, "🔥 Exception: " + e.getMessage());
+
                 handler.post(() -> {
                     if (finalDialog != null && finalDialog.isShowing()) {
                         finalDialog.dismiss();
                     }
+
                     Toast.makeText(activity, "Error processing image", Toast.LENGTH_SHORT).show();
                 });
             }

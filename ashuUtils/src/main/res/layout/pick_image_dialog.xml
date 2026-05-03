@@ -56,7 +56,7 @@
                 android:layout_height="1dp"
                 android:layout_marginTop="10dp"
                 android:background= "#cac4d0"/>
-            
+
             <LinearLayout
                 android:id="@+id/cameraOption"
                 android:layout_width="match_parent"
@@ -134,13 +134,13 @@
                 android:orientation="horizontal">
 
                 <ImageView
+                    android:id="@+id/closeIcon"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@drawable/close_icon"
                     />
 
                 <TextView
-                    android:id="@+id/closeIcon"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"

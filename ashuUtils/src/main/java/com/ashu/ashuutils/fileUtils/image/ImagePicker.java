@@ -3,15 +3,19 @@ package com.ashu.ashuutils.fileUtils.image;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.content.ContextCompat;
@@ -21,6 +25,8 @@ import com.ashu.ashuutils.Messages;
 import com.ashu.ashuutils.R;
 import com.ashu.ashuutils.fileUtils.FileUtils;
 import com.ashu.ashuutils.fileUtils.PermissionUtils;
+import com.yalantis.ucrop.UCrop;
+import com.yalantis.ucrop.UCropActivity;
 
 import java.io.File;
 import java.util.Objects;
@@ -49,7 +55,8 @@ public class ImagePicker {
      * @param callback        Interface callback to return user actions (camera/gallery selection)
      *                        and image result back to the calling Activity.
      */
-    public static void showPickImageDialog(String TAG, Activity activity, int req_code, int designColor, boolean withPermission, FileUtils.ResultCallback callback) {
+    public static void showPickImageDialog(String TAG, Activity activity, int req_code, int designColor,
+                                           boolean withPermission, FileUtils.ResultCallback callback) {
 
         // Create dialog instance using activity context
         final Dialog dialog = new Dialog(activity);
@@ -75,24 +82,27 @@ public class ImagePicker {
         // Prevent dialog dismissal on outside touch or back press
         dialog.setCancelable(false);
 
-        // 🔥 Resolve color from resources (theme-based dynamic color)
-        int color = ContextCompat.getColor(activity, designColor);
-
         // Get main image view and apply tint color
         AppCompatImageView imageView = dialog.findViewById(R.id.image_view_dialog);
-        imageView.setColorFilter(color);
+
 
         // Get camera icon and apply tint
         ImageView cameraIcon = dialog.findViewById(R.id.cameraIcon);
-        cameraIcon.setColorFilter(color);
 
         // Get gallery icon and apply tint
         ImageView galleryIcon = dialog.findViewById(R.id.galleryIcon);
-        galleryIcon.setColorFilter(color);
 
         // Get close icon and apply tint
         ImageView closeIcon = dialog.findViewById(R.id.closeIcon);
-        closeIcon.setColorFilter(color);
+
+        // 🔥 Resolve color from resources (theme-based dynamic color)
+        if(designColor != 0) {
+            int color = ContextCompat.getColor(activity, designColor);
+            imageView.setColorFilter(color);
+            cameraIcon.setColorFilter(color);
+            galleryIcon.setColorFilter(color);
+            closeIcon.setColorFilter(color);
+        }
 
         // Camera option button
         LinearLayout cameraOptionBtn = dialog.findViewById(R.id.cameraOption);
@@ -143,6 +153,171 @@ public class ImagePicker {
 
         // Show dialog on screen
         dialog.show();
+    }
+
+    public interface CropImageCallback {
+        void onCropOptionCanceled();
+    }
+
+    /**
+     * Shows a dialog asking user whether they want to crop the selected image.
+     *
+     * @param TAG          Used for logging/debug tracking
+     * @param context      Activity context (required for dialog + UCrop)
+     * @param imageUri     URI of selected image (camera/gallery)
+     * @param imageRequest Request code to identify crop result
+     * @param imageName    Base name for cropped image file
+     * @param appLogo      Drawable resource for dialog image (optional)
+     * @param designColor  Color resource for YES button tint (optional)
+     * @param callback     Callback for handling cancel action
+     */
+    public static void showCropOptionDialog(
+            String TAG,
+            Activity context,
+            Uri imageUri,
+            int imageRequest,
+            String imageName,
+            int appLogo,
+            int designColor,
+            CropImageCallback callback
+    ) {
+
+        Messages.showTestLog(TAG, "🟡 Opening crop option dialog");
+
+        // Create dialog instance
+        Dialog dialog = new Dialog(context);
+        dialog.setContentView(R.layout.crop_image_dialog_design);
+
+        // Make dialog background transparent (for custom UI)
+        Objects.requireNonNull(dialog.getWindow())
+                .setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+
+        // Initialize UI elements
+        ImageView dialogImage = dialog.findViewById(R.id.dialogImage);
+        TextView dialogMessage = dialog.findViewById(R.id.dialogMessage);
+        TextView btnNo = dialog.findViewById(R.id.btnNo);
+        TextView btnYes = dialog.findViewById(R.id.btnYes);
+
+        // Apply dynamic color to YES button (if provided)
+        if (designColor != 0) {
+            Messages.showTestLog(TAG, "🎨 Applying button tint color");
+            btnYes.setBackgroundTintList(
+                    ContextCompat.getColorStateList(context, designColor)
+            );
+        }
+
+        // Set app logo (if provided)
+        if (appLogo != 0) {
+            Messages.showTestLog(TAG, "🖼️ Setting dialog logo");
+            dialogImage.setImageResource(appLogo);
+        }
+
+        // Set dialog message
+        dialogMessage.setText("Would you like to crop image for better visibility?");
+        Messages.showTestLog(TAG, "💬 Dialog message set");
+
+        // ❌ NO button click → cancel crop
+        btnNo.setOnClickListener(v -> {
+            Messages.showTestLog(TAG, "❌ User selected NO (skip cropping)");
+            dialog.dismiss();
+
+            if (callback != null) {
+                callback.onCropOptionCanceled();
+            }
+        });
+
+        // ✅ YES button click → start crop
+        btnYes.setOnClickListener(v -> {
+            Messages.showTestLog(TAG, "✅ User selected YES (start cropping)");
+            dialog.dismiss();
+
+            startCrop(TAG, context, imageUri, imageRequest, imageName);
+        });
+
+        // Show dialog
+        dialog.show();
+        Messages.showTestLog(TAG, "📢 Crop dialog displayed");
+    }
+
+
+    /**
+     * Starts UCrop image cropping activity.
+     *
+     * @param TAG          Logging tag
+     * @param context      Activity context
+     * @param sourceUri    Original image URI
+     * @param requestCode  Request code for result handling
+     * @param imageName    Base file name for cropped image
+     */
+    public static void startCrop(
+            String TAG,
+            Activity context,
+            Uri sourceUri,
+            int requestCode,
+            String imageName
+    ) {
+
+        Messages.showTestLog(TAG, "✂️ Starting crop process");
+
+        // Create destination file in cache directory
+        File file = new File(
+                context.getCacheDir(),
+                imageName + System.currentTimeMillis() + ".jpg"
+        );
+
+        Messages.showTestLog(TAG, "📂 Destination file: " + file.getAbsolutePath());
+
+        // Generate secure URI using FileProvider
+        Uri destinationUri = FileProvider.getUriForFile(
+                context,
+                context.getPackageName() + ".provider",
+                file
+        );
+
+        Messages.showTestLog(TAG, "🔗 Destination URI: " + destinationUri);
+
+        // Configure UCrop options
+        UCrop.Options options = new UCrop.Options();
+
+        // Compression settings
+        options.setCompressionFormat(Bitmap.CompressFormat.JPEG);
+        options.setCompressionQuality(80);
+        Messages.showTestLog(TAG, "⚙️ Compression set: JPEG (80%)");
+
+        // Circular crop overlay
+//        options.setCircleDimmedLayer(true);
+//        Messages.showTestLog(TAG, "⭕ Circle crop enabled");
+
+        // Hide crop frame & grid
+        options.setShowCropFrame(false);
+        options.setShowCropGrid(false);
+
+        // Lock aspect ratio (1:1)
+        options.withAspectRatio(1, 1);
+        Messages.showTestLog(TAG, "📐 Aspect ratio locked to 1:1");
+
+        // Toolbar customization
+        options.setToolbarTitle("Crop");
+        options.setToolbarColor(ContextCompat.getColor(context, R.color.white));
+        options.setStatusBarColor(ContextCompat.getColor(context, R.color.white));
+
+        // UI behavior
+        options.setHideBottomControls(true);
+        options.setFreeStyleCropEnabled(false);
+
+        // Allow only scaling gesture
+        options.setAllowedGestures(
+                UCropActivity.SCALE,
+                UCropActivity.NONE,
+                UCropActivity.NONE
+        );
+
+        Messages.showTestLog(TAG, "🚀 Launching UCrop activity");
+
+        // Start UCrop
+        UCrop.of(sourceUri, destinationUri)
+                .withOptions(options)
+                .start(context, requestCode);
     }
 
     public static void choosePictureFromGalleryWithPermission(String TAG, Activity context, int req_code) {
@@ -201,6 +376,33 @@ public class ImagePicker {
                 Messages.showTestLog(TAG, "🔥 Error while opening camera: " + e.getMessage());
             }
 
-        } else PermissionUtils.requestCameraPermission(context);
+        }else PermissionUtils.requestCameraPermission(context);
+    }
+
+    public static void chooseDocumentFromStorage(Activity context, int req_code) {
+        try {
+            // ✅ Intent to open any type of document (images, pdfs, etc.)
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+
+            // Allow multiple selection
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+
+            // Set MIME types for documents (images, PDFs, etc.)
+            intent.setType("*/*");
+            String[] mimeTypes = {
+                    "image/*",
+                    "application/pdf"
+            };
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+
+            // ✅ Launch document picker
+            context.startActivityForResult(intent, req_code);
+
+            Log.i("FilePicker", "📂 Document picker opened successfully (PDF, Image)");
+        } catch (Exception e) {
+            Log.e("FilePicker", "❌ Failed to open document picker: " + e.getMessage(), e);
+            Toast.makeText(context, "Unable to open file picker", Toast.LENGTH_SHORT).show();
+        }
     }
 }
